@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Stundenzettel</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --ink:#1b2733;
+  --ink-soft:#5b6b78;
+  --paper:#eef1ee;
+  --card:#ffffff;
+  --line:#dde3de;
+  --line-soft:#e9ede9;
+  --sun:#b9793a;
+  --sun-bg:#f7ead9;
+  --holiday:#a8432f;
+  --holiday-bg:#f6dfd9;
+  --night:#33587a;
+  --night-bg:#dde6ee;
+  --good:#2c6e5c;
+  --good-bg:#dcece6;
+  --danger:#a8432f;
+  --radius:12px;
+  --mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  --sans:'Space Grotesk', system-ui, -apple-system, sans-serif;
+}
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:64px;
+}
+
+#app{ max-width:520px; margin:0 auto; min-height:100vh; background:var(--paper); }
+
+/* ---------- Header ---------- */
+.topbar{
+  background:var(--ink);
+  color:#f2f4f1;
+  padding:16px 16px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  position:sticky;
+  top:0;
+  z-index:20;
+}
+.brand{ display:flex; align-items:center; gap:10px; min-width:0; }
+.brand-mark{
+  width:34px; height:34px; flex:0 0 auto;
+  border:1.5px solid #f2f4f1;
+  border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-weight:600; font-size:16px;
+}
+.brand h1{ font-size:16px; font-weight:600; margin:0; letter-spacing:.2px; }
+.brand .period{ margin:1px 0 0; font-size:12px; color:#c7cdc6; font-family:var(--mono); }
+.netto-chip{
+  text-align:right; flex:0 0 auto;
+}
+.netto-chip .netto-label{ display:block; font-size:10px; color:#c7cdc6; }
+.netto-chip .netto-value{
+  display:block; font-family:var(--mono); font-weight:600; font-size:17px; color:#eae0c8;
+}
+
+/* ---------- Tabs ---------- */
+.tabs{
+  display:flex; overflow-x:auto; gap:2px;
+  background:#ffffff;
+  border-bottom:1px solid var(--line);
+  position:sticky; top:62px; z-index:19;
+  -ms-overflow-style:none; scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{ display:none; }
+.tab{
+  flex:0 0 auto;
+  padding:11px 14px;
+  font-family:var(--sans);
+  font-size:12.5px;
+  font-weight:600;
+  color:var(--ink-soft);
+  background:none; border:none; cursor:pointer;
+  border-bottom:2.5px solid transparent;
+  white-space:nowrap;
+}
+.tab.active{ color:var(--ink); border-bottom-color:var(--sun); }
+
+main{ padding:14px 12px 24px; }
+.panel{ display:none; }
+.panel.active{ display:block; }
+
+/* ---------- Generic card / field styles ---------- */
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:14px;
+  margin-bottom:12px;
+}
+.card h2{
+  font-size:13px; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--ink-soft); margin:0 0 10px; font-weight:600;
+}
+.note{
+  font-size:12px; color:var(--ink-soft); line-height:1.5; margin:0 0 10px;
+}
+.field{ margin-bottom:10px; }
+.field label{
+  display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; font-weight:500;
+}
+.field input, .field select{
+  width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px;
+  font-family:var(--mono); font-size:14px; color:var(--ink); background:#fbfcfb;
+}
+.field input:focus, .field select:focus{ outline:2px solid var(--sun); outline-offset:0; border-color:var(--sun); }
+.row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+
+button.btn{
+  font-family:var(--sans); font-weight:600; font-size:13px;
+  padding:9px 14px; border-radius:8px; border:1px solid var(--ink);
+  background:var(--ink); color:#fff; cursor:pointer;
+}
+button.btn.ghost{
+  background:none; color:var(--ink); border:1px solid var(--line);
+}
+button.btn.small{ padding:6px 10px; font-size:12px; }
+button.icon-btn{
+  border:1px solid var(--line); background:#fff; border-radius:7px;
+  width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; color:var(--ink-soft); font-size:14px; flex:0 0 auto;
+}
+button.icon-btn:active{ background:var(--line-soft); }
+
+/* ---------- Zeiterfassung: month switcher ---------- */
+.month-switch{
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:10px 12px; margin-bottom:12px;
+}
+.month-switch .mlabel{ font-family:var(--mono); font-weight:600; font-size:14.5px; }
+.month-switch .marrows{ display:flex; gap:6px; }
+
+/* ---------- Day rows ---------- */
+.day{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:11px 12px; margin-bottom:8px;
+}
+.day.is-sunday{ border-left:3px solid var(--sun); }
+.day.is-holiday{ border-left:3px solid var(--holiday); }
+.day-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.day-date{ display:flex; align-items:baseline; gap:8px; }
+.day-date .num{ font-family:var(--mono); font-weight:600; font-size:15px; }
+.day-date .wd{ font-size:12px; color:var(--ink-soft); }
+.badges{ display:flex; gap:5px; }
+.badge{
+  font-size:10px; font-weight:600; padding:2px 6px; border-radius:20px;
+  letter-spacing:.02em;
+}
+.badge.sun{ background:var(--sun-bg); color:var(--sun); }
+.badge.holiday{ background:var(--holiday-bg); color:var(--holiday); }
+.day-inputs{ display:flex; align-items:center; gap:6px; }
+.day-inputs input[type=time]{
+  flex:1; padding:8px 8px; border:1px solid var(--line); border-radius:7px;
+  font-family:var(--mono); font-size:14px; background:#fbfcfb;
+}
+.day-result{
+  margin-top:8px; padding-top:8px; border-top:1px dashed var(--line-soft);
+  display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center;
+  font-size:11.5px; color:var(--ink-soft); font-family:var(--mono);
+}
+.day-result .gesamt{ font-weight:600; color:var(--ink); margin-left:auto; font-size:13px; }
+.chip{
+  padding:1px 6px; border-radius:6px; font-size:10.5px;
+}
+.chip.night{ background:var(--night-bg); color:var(--night); }
+.chip.zu-sun{ background:var(--sun-bg); color:var(--sun); }
+.chip.zu-holiday{ background:var(--holiday-bg); color:var(--holiday); }
+.bem-input{
+  width:100%; margin-top:6px; padding:6px 8px; border:1px solid var(--line-soft);
+  border-radius:7px; font-family:var(--sans); font-size:12px; background:#fafbfa;
+}
+
+/* ---------- Table-ish lists (Feiertage / Abzüge / Pausen) ---------- */
+.list-row{
+  display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center;
+  padding:8px 0; border-bottom:1px solid var(--line-soft);
+}
+.list-row:last-of-type{ border-bottom:none; }
+.list-row .fields{ display:flex; gap:6px; flex-wrap:wrap; }
+.list-row .fields input, .list-row .fields select{
+  padding:7px 8px; border:1px solid var(--line); border-radius:7px;
+  font-family:var(--mono); font-size:12.5px; background:#fbfcfb;
+}
+.add-row-btn{
+  width:100%; margin-top:10px; padding:9px; border-radius:8px;
+  border:1.5px dashed var(--line); background:none; color:var(--ink-soft);
+  font-family:var(--sans); font-weight:600; font-size:12.5px; cursor:pointer;
+}
+
+/* ---------- Summary ---------- */
+.summary-hero{
+  background:var(--ink); color:#f2f4f1; border-radius:var(--radius);
+  padding:18px; margin-bottom:12px;
+}
+.summary-hero .label{ font-size:11px; color:#c7cdc6; text-transform:uppercase; letter-spacing:.06em; }
+.summary-hero .amount{ font-family:var(--mono); font-weight:700; font-size:32px; margin:4px 0 0; color:#eae0c8; }
+.summary-hero .sub{ font-size:12px; color:#9aa5a1; margin-top:6px; font-family:var(--mono); }
+.stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.stat{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:12px;
+}
+.stat .slabel{ font-size:11px; color:var(--ink-soft); margin-bottom:4px; }
+.stat .svalue{ font-family:var(--mono); font-weight:600; font-size:17px; }
+.kv{ display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line-soft); font-size:13px; }
+.kv:last-child{ border-bottom:none; }
+.kv .k{ color:var(--ink-soft); }
+.kv .v{ font-family:var(--mono); font-weight:600; }
+.kv.total .v{ font-size:16px; color:var(--good); }
+
+/* ---------- Status bar ---------- */
+.statusbar{
+  position:fixed; bottom:0; left:0; right:0;
+  max-width:520px; margin:0 auto;
+  background:#ffffffee; backdrop-filter:blur(4px);
+  border-top:1px solid var(--line);
+  padding:8px 14px; font-size:11px; color:var(--ink-soft);
+  text-align:center; font-family:var(--mono);
+}
+
+.legend{ display:flex; gap:10px; flex-wrap:wrap; font-size:11px; color:var(--ink-soft); margin-top:2px;}
+.legend span{ display:inline-flex; align-items:center; gap:4px; }
+.dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">€</div>
+      <div>
+        <h1>Stundenzettel</h1>
+        <p class="period" id="periodLabel">–</p>
+      </div>
+    </div>
+    <div class="netto-chip">
+      <span class="netto-label">Netto (Monat)</span>
+      <span class="netto-value" id="nettoChip">0,00 €</span>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="zeit">Zeiten</button>
+    <button class="tab" data-tab="einstellungen">Einstellungen</button>
+    <button class="tab" data-tab="feiertage">Feiertage</button>
+    <button class="tab" data-tab="abzuege">Abzüge</button>
+    <button class="tab" data-tab="uebersicht">Übersicht</button>
+  </nav>
+
+  <main id="content">
+
+    <!-- ============ ZEITERFASSUNG ============ -->
+    <section class="panel active" id="tab-zeit">
+      <div class="month-switch">
+        <button class="icon-btn" id="prevMonth">‹</button>
+        <span class="mlabel" id="monthLabel">September 2026</span>
+        <button class="icon-btn" id="nextMonth">›</button>
+      </div>
+      <div class="card" style="padding:10px 14px;">
+        <p class="note" style="margin:0;">Für jeden Tag Beginn &amp; Ende eintragen. Pause, Nachtstunden und Zuschläge werden automatisch berechnet.</p>
+      </div>
+      <div id="dayList"></div>
+    </section>
+
+    <!-- ============ EINSTELLUNGEN ============ -->
+    <section class="panel" id="tab-einstellungen">
+      <div class="card">
+        <h2>Lohn</h2>
+        <div class="field">
+          <label>Stundenlohn (Brutto, €)</label>
+          <input type="number" id="inLohn" step="0.01" min="0">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Zuschläge</h2>
+        <div class="row3">
+          <div class="field">
+            <label>Sonntag (%)</label>
+            <input type="number" id="inZuSo" step="1" min="0">
+          </div>
+          <div class="field">
+            <label>Feiertag (%)</label>
+            <input type="number" id="inZuFt" step="1" min="0">
+          </div>
+          <div class="field">
+            <label>Nacht (%)</label>
+            <input type="number" id="inZuNacht" step="1" min="0">
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Nachtschicht Beginn</label>
+            <input type="time" id="inNachtVon">
+          </div>
+          <div class="field">
+            <label>Nachtschicht Ende</label>
+            <input type="time" id="inNachtBis">
+          </div>
+        </div>
+        <p class="note" style="margin:4px 0 0;">Sonntag + Feiertag am selben Tag werden addiert. Nachtfenster darf über Mitternacht gehen.</p>
+      </div>
+
+      <div class="card">
+        <h2>Pausenregelung</h2>
+        <p class="note">Ab wie vielen Bruttostunden wird wie viel Pause abgezogen? Beliebig viele Stufen.</p>
+        <div id="pausenList"></div>
+        <button class="add-row-btn" id="addPause">+ Stufe hinzufügen</button>
+      </div>
+
+      <div class="card">
+        <h2>Daten sichern</h2>
+        <p class="note">Alles wird nur lokal in diesem Browser gespeichert (nicht synchronisiert, nicht geteilt). Falls du den Browser wechselst oder Daten löschst, kannst du hier ein Backup herunterladen bzw. wieder einspielen.</p>
+        <div class="row2">
+          <button class="btn ghost" id="exportBtn" type="button">Backup herunterladen</button>
+          <button class="btn ghost" id="importBtn" type="button">Backup einspielen</button>
+        </div>
+        <input type="file" id="importFile" accept="application/json" style="display:none">
+      </div>
+    </section>
+
+    <!-- ============ FEIERTAGE ============ -->
+    <section class="panel" id="tab-feiertage">
+      <div class="card">
+        <h2>Feiertage</h2>
+        <p class="note">Feiertage sind je Bundesland unterschiedlich – bitte prüfen und ergänzen. Bewegliche Feiertage (Ostern etc.) jährlich neu eintragen.</p>
+        <div id="feiertageList"></div>
+        <button class="add-row-btn" id="addFeiertag">+ Feiertag hinzufügen</button>
+      </div>
+    </section>
+
+    <!-- ============ ABZÜGE ============ -->
+    <section class="panel" id="tab-abzuege">
+      <div class="card">
+        <h2>Abzüge → Netto</h2>
+        <p class="note">Typ „Prozent" bezieht sich auf den monatlichen Bruttolohn.</p>
+        <div id="abzuegeList"></div>
+        <button class="add-row-btn" id="addAbzug">+ Abzug hinzufügen</button>
+      </div>
+    </section>
+
+    <!-- ============ ÜBERSICHT ============ -->
+    <section class="panel" id="tab-uebersicht">
+      <div class="summary-hero">
+        <div class="label">Nettolohn – <span id="sumMonthLabel">–</span></div>
+        <div class="amount" id="sumNetto">0,00 €</div>
+        <div class="sub" id="sumBruttoSub">Brutto 0,00 € · Abzüge 0,00 €</div>
+      </div>
+
+      <div class="stat-grid" style="margin-bottom:12px;">
+        <div class="stat">
+          <div class="slabel">Gesamtstunden</div>
+          <div class="svalue" id="statGesamt">0,00 Std.</div>
+        </div>
+        <div class="stat">
+          <div class="slabel">Arbeitstage</div>
+          <div class="svalue" id="statTage">0</div>
+        </div>
+        <div class="stat">
+          <div class="slabel">Sonntagsstunden</div>
+          <div class="svalue" id="statSo">0,00 Std.</div>
+        </div>
+        <div class="stat">
+          <div class="slabel">Feiertagsstunden</div>
+          <div class="svalue" id="statFt">0,00 Std.</div>
+        </div>
+        <div class="stat">
+          <div class="slabel">Nachtstunden</div>
+          <div class="svalue" id="statNacht">0,00 Std.</div>
+        </div>
+        <div class="stat">
+          <div class="slabel">Pausen gesamt</div>
+          <div class="svalue" id="statPause">0,00 Std.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Lohn im Detail</h2>
+        <div class="kv"><span class="k">Grundlohn</span><span class="v" id="kvGrund">0,00 €</span></div>
+        <div class="kv"><span class="k">Zuschlag Sonntag</span><span class="v" id="kvZuSo">0,00 €</span></div>
+        <div class="kv"><span class="k">Zuschlag Feiertag</span><span class="v" id="kvZuFt">0,00 €</span></div>
+        <div class="kv"><span class="k">Zuschlag Nacht</span><span class="v" id="kvZuNacht">0,00 €</span></div>
+        <div class="kv total"><span class="k">Bruttolohn gesamt</span><span class="v" id="kvBrutto">0,00 €</span></div>
+        <div class="kv"><span class="k">Summe Abzüge</span><span class="v" id="kvAbzuege">0,00 €</span></div>
+        <div class="kv total"><span class="k">Nettolohn</span><span class="v" id="kvNetto">0,00 €</span></div>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--sun)"></span>Sonntag</span>
+        <span><span class="dot" style="background:var(--holiday)"></span>Feiertag</span>
+        <span><span class="dot" style="background:var(--night)"></span>Nacht</span>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="statusbar" id="statusbar">wird geladen …</div>
+</div>
+
+<script>
+/* ============================================================
+   STATE
+   ============================================================ */
+const MONATSNAMEN = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+
+function defaultSettings(){
+  const now = new Date();
+  return {
+    jahr: 2026,
+    monat: 9,
+    lohn: 15,
+    zuSo: 30,
+    zuFt: 125,
+    zuNacht: 25,
+    nachtVon: "22:00",
+    nachtBis: "06:00",
+    pausen: [ {ab:0, min:0}, {ab:5, min:30}, {ab:9, min:45} ]
+  };
+}
+function defaultFeiertage(){
+  return [
+    {datum:"2026-01-01", bez:"Neujahr"},
+    {datum:"2026-04-03", bez:"Karfreitag"},
+    {datum:"2026-04-06", bez:"Ostermontag"},
+    {datum:"2026-05-01", bez:"Tag der Arbeit"},
+    {datum:"2026-05-14", bez:"Christi Himmelfahrt"},
+    {datum:"2026-05-25", bez:"Pfingstmontag"},
+    {datum:"2026-10-03", bez:"Tag der Deutschen Einheit"},
+    {datum:"2026-12-25", bez:"1. Weihnachtsfeiertag"},
+    {datum:"2026-12-26", bez:"2. Weihnachtsfeiertag"}
+  ];
+}
+function defaultAbzuege(){
+  return [
+    {bez:"Lohnsteuer", typ:"Prozent", wert:15},
+    {bez:"Sozialversicherung", typ:"Prozent", wert:20},
+    {bez:"Vorschuss", typ:"Fest", wert:0}
+  ];
+}
+
+let settings = defaultSettings();
+let feiertage = defaultFeiertage();
+let abzuege = defaultAbzuege();
+let tageCache = {}; // monthKey -> { day: {von,bis,bem} }
+let storageOk = true;
+
+/* ============================================================
+   STORAGE (localStorage – jede Person speichert lokal in ihrem
+   eigenen Browser, nichts wird geteilt oder synchronisiert)
+   ============================================================ */
+const NS = "sz_"; // Namespace-Präfix, um Kollisionen zu vermeiden
+
+async function safeGet(key){
+  try{
+    const v = window.localStorage.getItem(NS+key);
+    return v;
+  }catch(e){ return null; }
+}
+async function safeSet(key, value){
+  try{
+    window.localStorage.setItem(NS+key, value);
+    return true;
+  }catch(e){ return false; }
+}
+function allTageKeys(){
+  const keys = [];
+  try{
+    for(let i=0; i<window.localStorage.length; i++){
+      const k = window.localStorage.key(i);
+      if(k && k.startsWith(NS+"tage:")) keys.push(k.slice(NS.length));
+    }
+  }catch(e){}
+  return keys;
+}
+
+function monthKey(){
+  return settings.jahr + "-" + String(settings.monat).padStart(2,"0");
+}
+
+async function loadMonth(key){
+  if(tageCache[key]) return;
+  const raw = await safeGet("tage:"+key);
+  tageCache[key] = raw ? JSON.parse(raw) : {};
+}
+
+async function saveSettings(){ storageOk = (await safeSet("settings", JSON.stringify(settings))) && storageOk; setStatus(); }
+async function saveFeiertage(){ storageOk = (await safeSet("feiertage", JSON.stringify(feiertage))) && storageOk; setStatus(); }
+async function saveAbzuege(){ storageOk = (await safeSet("abzuege", JSON.stringify(abzuege))) && storageOk; setStatus(); }
+async function saveMonth(){
+  const key = monthKey();
+  storageOk = (await safeSet("tage:"+key, JSON.stringify(tageCache[key]))) && storageOk;
+  setStatus();
+}
+
+function setStatus(){
+  const el = document.getElementById("statusbar");
+  el.textContent = storageOk ? "Änderungen werden lokal in diesem Browser gespeichert" : "Speicherung nicht möglich (privater Modus?) – nur für diese Sitzung";
+}
+
+async function loadAll(){
+  const s = await safeGet("settings");
+  if(s){ settings = Object.assign(defaultSettings(), JSON.parse(s)); }
+  const f = await safeGet("feiertage");
+  if(f){ feiertage = JSON.parse(f); }
+  const a = await safeGet("abzuege");
+  if(a){ abzuege = JSON.parse(a); }
+  await loadMonth(monthKey());
+  renderAll();
+  setStatus();
+}
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function fmtEUR(n){
+  return (isFinite(n)?n:0).toLocaleString("de-DE",{minimumFractionDigits:2, maximumFractionDigits:2}) + " €";
+}
+function fmtStd(n){
+  return (isFinite(n)?n:0).toLocaleString("de-DE",{minimumFractionDigits:2, maximumFractionDigits:2}) + " Std.";
+}
+function toMinutes(t){
+  if(!t) return null;
+  const parts = t.split(":");
+  if(parts.length<2) return null;
+  return (+parts[0])*60 + (+parts[1]);
+}
+function daysInMonth(){ return new Date(settings.jahr, settings.monat, 0).getDate(); }
+function dateStr(day){
+  return settings.jahr + "-" + String(settings.monat).padStart(2,"0") + "-" + String(day).padStart(2,"0");
+}
+function weekdayShort(day){
+  const d = new Date(settings.jahr, settings.monat-1, day);
+  return d.toLocaleDateString("de-DE", {weekday:"short"});
+}
+function isSunday(day){
+  const d = new Date(settings.jahr, settings.monat-1, day);
+  return d.getDay() === 0;
+}
+function isHoliday(day){
+  const ds = dateStr(day);
+  return feiertage.some(f => f.datum === ds);
+}
+
+/* ============================================================
+   CORE CALCULATION
+   ============================================================ */
+function computeDay(day){
+  const key = monthKey();
+  const entry = (tageCache[key] && tageCache[key][day]) || {};
+  const res = { von: entry.von||"", bis: entry.bis||"", bem: entry.bem||"",
+                brutto:0, pause:0, netto:0, nacht:0, grund:0, zuSo:0, zuFt:0, zuNacht:0, gesamt:0 };
+  const vonM = toMinutes(entry.von), bisM = toMinutes(entry.bis);
+  if(vonM===null || bisM===null) return res;
+
+  const bruttoMin = bisM>=vonM ? (bisM-vonM) : (bisM-vonM+1440);
+  const bruttoH = bruttoMin/60;
+
+  // Pausen-Stufen: größte Stufe <= bruttoH gewinnt
+  const tiers = [...settings.pausen].sort((a,b)=>a.ab-b.ab);
+  let pauseMin = 0;
+  for(const t of tiers){ if(bruttoH >= (+t.ab)) pauseMin = +t.min; }
+  const pauseH = pauseMin/60;
+  const nettoH = Math.max(0, bruttoH - pauseH);
+
+  // Nachtstunden-Überlappung (auch über Mitternacht), proportional um Pause bereinigt
+  const startHr = vonM/60;
+  const endHr = bisM>=vonM ? bisM/60 : (bisM/60)+24;
+  const nvHr = toMinutes(settings.nachtVon)/60;
+  const nbHr = toMinutes(settings.nachtBis)/60;
+  const overlap = (a1,a2,b1,b2)=>Math.max(0, Math.min(a2,b2)-Math.max(a1,b1));
+  const nightGross = overlap(startHr,endHr, nvHr, 24+nbHr) + overlap(startHr,endHr, nbHr-24, nbHr);
+  const nightNet = bruttoH>0 ? nightGross * (nettoH/bruttoH) : 0;
+
+  const grund = nettoH * settings.lohn;
+  const zuSo = isSunday(day) ? nettoH*settings.lohn*(settings.zuSo/100) : 0;
+  const zuFt = isHoliday(day) ? nettoH*settings.lohn*(settings.zuFt/100) : 0;
+  const zuNacht = nightNet*settings.lohn*(settings.zuNacht/100);
+  const gesamt = grund+zuSo+zuFt+zuNacht;
+
+  Object.assign(res, {brutto:bruttoH, pause:pauseH, netto:nettoH, nacht:nightNet, grund, zuSo, zuFt, zuNacht, gesamt});
+  return res;
+}
+
+function computeMonth(){
+  const n = daysInMonth();
+  let totals = {netto:0, pause:0, so:0, ft:0, nacht:0, grund:0, zuSo:0, zuFt:0, zuNacht:0, brutto:0, tage:0};
+  for(let d=1; d<=n; d++){
+    const c = computeDay(d);
+    if(c.netto>0) totals.tage++;
+    totals.netto += c.netto;
+    totals.pause += c.pause;
+    totals.nacht += c.nacht;
+    totals.grund += c.grund;
+    totals.zuSo += c.zuSo;
+    totals.zuFt += c.zuFt;
+    totals.zuNacht += c.zuNacht;
+    totals.brutto += c.gesamt;
+    if(isSunday(d)) totals.so += c.netto;
+    if(isHoliday(d)) totals.ft += c.netto;
+  }
+  let abzugSumme = 0;
+  abzuege.forEach(a=>{
+    const wert = +a.wert || 0;
+    abzugSumme += (a.typ === "Prozent") ? (wert/100)*totals.brutto : wert;
+  });
+  totals.abzuege = abzugSumme;
+  totals.netto_lohn = totals.brutto - abzugSumme;
+  return totals;
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function renderAll(){
+  renderHeader();
+  renderDayList();
+  renderEinstellungen();
+  renderFeiertageList();
+  renderAbzuegeList();
+  renderUebersicht();
+}
+
+function renderHeader(){
+  const label = MONATSNAMEN[settings.monat-1] + " " + settings.jahr;
+  document.getElementById("periodLabel").textContent = label;
+  document.getElementById("monthLabel").textContent = label;
+  document.getElementById("sumMonthLabel").textContent = label;
+  const t = computeMonth();
+  document.getElementById("nettoChip").textContent = fmtEUR(t.netto_lohn);
+}
+
+function renderDayList(){
+  const n = daysInMonth();
+  const list = document.getElementById("dayList");
+  list.innerHTML = "";
+  for(let d=1; d<=n; d++){
+    const c = computeDay(d);
+    const sun = isSunday(d), hol = isHoliday(d);
+    const div = document.createElement("div");
+    div.className = "day" + (sun?" is-sunday":"") + (hol?" is-holiday":"");
+    div.innerHTML = `
+      <div class="day-top">
+        <div class="day-date">
+          <span class="num">${String(d).padStart(2,"0")}.${String(settings.monat).padStart(2,"0")}.</span>
+          <span class="wd">${weekdayShort(d)}</span>
+        </div>
+        <div class="badges">
+          ${sun?'<span class="badge sun">Sonntag</span>':''}
+          ${hol?'<span class="badge holiday">Feiertag</span>':''}
+        </div>
+      </div>
+      <div class="day-inputs">
+        <input type="time" data-day="${d}" data-field="von" value="${c.von}">
+        <span style="color:var(--ink-soft);">–</span>
+        <input type="time" data-day="${d}" data-field="bis" value="${c.bis}">
+        ${d>1?`<button class="icon-btn" data-copy="${d}" title="Von Vortag übernehmen">↧</button>`:''}
+      </div>
+      ${(c.von||c.bis||c.bem) ? `<div class="day-result">
+        <span>${fmtStd(c.brutto)} brutto</span>
+        <span>− ${fmtStd(c.pause)} Pause</span>
+        ${c.nacht>0?`<span class="chip night">${fmtStd(c.nacht)} Nacht</span>`:''}
+        ${c.zuSo>0?`<span class="chip zu-sun">+${fmtEUR(c.zuSo)}</span>`:''}
+        ${c.zuFt>0?`<span class="chip zu-holiday">+${fmtEUR(c.zuFt)}</span>`:''}
+        <span class="gesamt">${fmtEUR(c.gesamt)}</span>
+      </div>` : ``}
+      <input type="text" class="bem-input" data-day="${d}" data-field="bem" placeholder="Bemerkung (optional)" value="${c.bem}">
+    `;
+    list.appendChild(div);
+  }
+
+  list.querySelectorAll('input[type=time]').forEach(inp=>{
+    inp.addEventListener("change", async (e)=>{
+      const day = e.target.dataset.day, field = e.target.dataset.field;
+      const key = monthKey();
+      tageCache[key][day] = tageCache[key][day] || {};
+      tageCache[key][day][field] = e.target.value;
+      await saveMonth();
+      renderDayList();
+      renderHeader();
+      renderUebersicht();
+    });
+  });
+  list.querySelectorAll('.bem-input').forEach(inp=>{
+    inp.addEventListener("change", async (e)=>{
+      const day = e.target.dataset.day;
+      const key = monthKey();
+      tageCache[key][day] = tageCache[key][day] || {};
+      tageCache[key][day]["bem"] = e.target.value;
+      await saveMonth();
+    });
+  });
+  list.querySelectorAll('[data-copy]').forEach(btn=>{
+    btn.addEventListener("click", async (e)=>{
+      const day = +e.target.dataset.copy;
+      const key = monthKey();
+      const prev = tageCache[key][day-1];
+      if(!prev) return;
+      tageCache[key][day] = { von: prev.von||"", bis: prev.bis||"", bem: tageCache[key][day]?.bem||"" };
+      await saveMonth();
+      renderDayList();
+      renderHeader();
+      renderUebersicht();
+    });
+  });
+}
+
+function renderEinstellungen(){
+  document.getElementById("inLohn").value = settings.lohn;
+  document.getElementById("inZuSo").value = settings.zuSo;
+  document.getElementById("inZuFt").value = settings.zuFt;
+  document.getElementById("inZuNacht").value = settings.zuNacht;
+  document.getElementById("inNachtVon").value = settings.nachtVon;
+  document.getElementById("inNachtBis").value = settings.nachtBis;
+
+  const list = document.getElementById("pausenList");
+  list.innerHTML = "";
+  settings.pausen.forEach((p, idx)=>{
+    const row = document.createElement("div");
+    row.className = "list-row";
+    row.innerHTML = `
+      <div class="fields">
+        <input type="number" min="0" step="0.5" style="width:90px" value="${p.ab}" data-idx="${idx}" data-f="ab"> Std. →
+        <input type="number" min="0" step="5" style="width:80px" value="${p.min}" data-idx="${idx}" data-f="min"> Min. Pause
+      </div>
+      <button class="icon-btn" data-del="${idx}">✕</button>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll("input").forEach(inp=>{
+    inp.addEventListener("change", async (e)=>{
+      const idx = +e.target.dataset.idx, f = e.target.dataset.f;
+      settings.pausen[idx][f] = +e.target.value;
+      await saveSettings();
+      renderDayList(); renderHeader(); renderUebersicht();
+    });
+  });
+  list.querySelectorAll("[data-del]").forEach(btn=>{
+    btn.addEventListener("click", async (e)=>{
+      settings.pausen.splice(+e.target.dataset.del, 1);
+      await saveSettings();
+      renderEinstellungen(); renderDayList(); renderHeader(); renderUebersicht();
+    });
+  });
+}
+
+function renderFeiertageList(){
+  const list = document.getElementById("feiertageList");
+  list.innerHTML = "";
+  feiertage.forEach((f, idx)=>{
+    const row = document.createElement("div");
+    row.className = "list-row";
+    row.innerHTML = `
+      <div class="fields">
+        <input type="date" value="${f.datum}" data-idx="${idx}" data-f="datum" style="width:145px">
+        <input type="text" value="${f.bez}" data-idx="${idx}" data-f="bez" placeholder="Bezeichnung" style="width:150px">
+      </div>
+      <button class="icon-btn" data-del="${idx}">✕</button>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll("input").forEach(inp=>{
+    inp.addEventListener("change", async (e)=>{
+      const idx = +e.target.dataset.idx, f = e.target.dataset.f;
+      feiertage[idx][f] = e.target.value;
+      await saveFeiertage();
+      renderDayList(); renderUebersicht();
+    });
+  });
+  list.querySelectorAll("[data-del]").forEach(btn=>{
+    btn.addEventListener("click", async (e)=>{
+      feiertage.splice(+e.target.dataset.del, 1);
+      await saveFeiertage();
+      renderFeiertageList(); renderDayList(); renderUebersicht();
+    });
+  });
+}
+
+function renderAbzuegeList(){
+  const list = document.getElementById("abzuegeList");
+  list.innerHTML = "";
+  abzuege.forEach((a, idx)=>{
+    const row = document.createElement("div");
+    row.className = "list-row";
+    row.innerHTML = `
+      <div class="fields">
+        <input type="text" value="${a.bez}" data-idx="${idx}" data-f="bez" placeholder="Bezeichnung" style="width:120px">
+        <select data-idx="${idx}" data-f="typ">
+          <option value="Prozent" ${a.typ==="Prozent"?"selected":""}>Prozent</option>
+          <option value="Fest" ${a.typ==="Fest"?"selected":""}>Fest (€)</option>
+        </select>
+        <input type="number" step="0.01" value="${a.wert}" data-idx="${idx}" data-f="wert" style="width:75px">
+      </div>
+      <button class="icon-btn" data-del="${idx}">✕</button>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll("input,select").forEach(inp=>{
+    inp.addEventListener("change", async (e)=>{
+      const idx = +e.target.dataset.idx, f = e.target.dataset.f;
+      abzuege[idx][f] = (f==="wert") ? +e.target.value : e.target.value;
+      await saveAbzuege();
+      renderHeader(); renderUebersicht();
+    });
+  });
+  list.querySelectorAll("[data-del]").forEach(btn=>{
+    btn.addEventListener("click", async (e)=>{
+      abzuege.splice(+e.target.dataset.del, 1);
+      await saveAbzuege();
+      renderAbzuegeList(); renderHeader(); renderUebersicht();
+    });
+  });
+}
+
+function renderUebersicht(){
+  const t = computeMonth();
+  document.getElementById("sumNetto").textContent = fmtEUR(t.netto_lohn);
+  document.getElementById("sumBruttoSub").textContent = `Brutto ${fmtEUR(t.brutto)} · Abzüge ${fmtEUR(t.abzuege)}`;
+  document.getElementById("statGesamt").textContent = fmtStd(t.netto);
+  document.getElementById("statTage").textContent = t.tage;
+  document.getElementById("statSo").textContent = fmtStd(t.so);
+  document.getElementById("statFt").textContent = fmtStd(t.ft);
+  document.getElementById("statNacht").textContent = fmtStd(t.nacht);
+  document.getElementById("statPause").textContent = fmtStd(t.pause);
+  document.getElementById("kvGrund").textContent = fmtEUR(t.grund);
+  document.getElementById("kvZuSo").textContent = fmtEUR(t.zuSo);
+  document.getElementById("kvZuFt").textContent = fmtEUR(t.zuFt);
+  document.getElementById("kvZuNacht").textContent = fmtEUR(t.zuNacht);
+  document.getElementById("kvBrutto").textContent = fmtEUR(t.brutto);
+  document.getElementById("kvAbzuege").textContent = fmtEUR(t.abzuege);
+  document.getElementById("kvNetto").textContent = fmtEUR(t.netto_lohn);
+}
+
+/* ============================================================
+   EVENTS
+   ============================================================ */
+document.getElementById("tabs").addEventListener("click", (e)=>{
+  const btn = e.target.closest(".tab");
+  if(!btn) return;
+  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("tab-"+btn.dataset.tab).classList.add("active");
+  window.scrollTo(0,0);
+});
+
+async function changeMonth(delta){
+  let m = settings.monat + delta, y = settings.jahr;
+  if(m>12){ m=1; y++; }
+  if(m<1){ m=12; y--; }
+  settings.monat = m; settings.jahr = y;
+  await saveSettings();
+  await loadMonth(monthKey());
+  renderAll();
+}
+document.getElementById("prevMonth").addEventListener("click", ()=>changeMonth(-1));
+document.getElementById("nextMonth").addEventListener("click", ()=>changeMonth(1));
+
+document.getElementById("inLohn").addEventListener("change", async (e)=>{ settings.lohn = +e.target.value; await saveSettings(); renderHeader(); renderDayList(); renderUebersicht(); });
+document.getElementById("inZuSo").addEventListener("change", async (e)=>{ settings.zuSo = +e.target.value; await saveSettings(); renderDayList(); renderHeader(); renderUebersicht(); });
+document.getElementById("inZuFt").addEventListener("change", async (e)=>{ settings.zuFt = +e.target.value; await saveSettings(); renderDayList(); renderHeader(); renderUebersicht(); });
+document.getElementById("inZuNacht").addEventListener("change", async (e)=>{ settings.zuNacht = +e.target.value; await saveSettings(); renderDayList(); renderHeader(); renderUebersicht(); });
+document.getElementById("inNachtVon").addEventListener("change", async (e)=>{ settings.nachtVon = e.target.value; await saveSettings(); renderDayList(); renderHeader(); renderUebersicht(); });
+document.getElementById("inNachtBis").addEventListener("change", async (e)=>{ settings.nachtBis = e.target.value; await saveSettings(); renderDayList(); renderHeader(); renderUebersicht(); });
+
+document.getElementById("addPause").addEventListener("click", async ()=>{
+  settings.pausen.push({ab:0, min:0});
+  await saveSettings();
+  renderEinstellungen();
+});
+document.getElementById("addFeiertag").addEventListener("click", async ()=>{
+  feiertage.push({datum: dateStr(1), bez:""});
+  await saveFeiertage();
+  renderFeiertageList();
+});
+document.getElementById("addAbzug").addEventListener("click", async ()=>{
+  abzuege.push({bez:"", typ:"Prozent", wert:0});
+  await saveAbzuege();
+  renderAbzuegeList();
+});
+
+/* ---------- Backup: Export / Import ---------- */
+document.getElementById("exportBtn").addEventListener("click", ()=>{
+  const tage = {};
+  allTageKeys().forEach(k=>{
+    const raw = window.localStorage.getItem(NS+k);
+    if(raw) tage[k] = JSON.parse(raw);
+  });
+  const backup = { settings, feiertage, abzuege, tage, exportiertAm: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "stundenzettel-backup-" + new Date().toISOString().slice(0,10) + ".json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("importBtn").addEventListener("click", ()=>{
+  document.getElementById("importFile").click();
+});
+document.getElementById("importFile").addEventListener("change", (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev)=>{
+    try{
+      const backup = JSON.parse(ev.target.result);
+      if(!confirm("Backup einspielen? Das überschreibt deine aktuellen Daten in diesem Browser.")) return;
+      if(backup.settings) settings = Object.assign(defaultSettings(), backup.settings);
+      if(backup.feiertage) feiertage = backup.feiertage;
+      if(backup.abzuege) abzuege = backup.abzuege;
+      await saveSettings(); await saveFeiertage(); await saveAbzuege();
+      if(backup.tage){
+        for(const key in backup.tage){
+          await safeSet("tage:"+key, JSON.stringify(backup.tage[key]));
+        }
+      }
+      tageCache = {};
+      await loadMonth(monthKey());
+      renderAll();
+      alert("Backup wurde eingespielt.");
+    }catch(err){
+      alert("Diese Datei konnte nicht gelesen werden. Bitte ein gültiges Backup auswählen.");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+loadAll();
+</script>
+</body>
+</html>
